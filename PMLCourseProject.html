@@ -365,14 +365,15 @@ summary {
 </div>
 
 
+<p>output: html_document keep_md: TRUE</p>
 <div id="wearable-fitness-modeling" class="section level1">
 <h1>Wearable Fitness Modeling</h1>
 <div id="overview" class="section level2">
 <h2>Overview</h2>
 <p>This study models different types of motion data gathered from several individuals wearing digital fitness bands (such as FitBit). The goal is to make predictions on what exercise an individual is doing based off of their motion data. This study employs existing machine learning algorithms such as random forest and linear discriminant analysis. After exerimentation we found that the random forest model provided the best prediction results.</p>
 </div>
-<div id="data-processing" class="section level2">
-<h2>Data Processing</h2>
+<div id="data-gathering" class="section level2">
+<h2>Data Gathering</h2>
 <p>First, we need to retrieve the data from the server and preprocess it. We also need to subset the dataset for variables the study was able to analyze.</p>
 <pre class="r"><code>library(tidyverse)
 library(caret)
@@ -392,8 +393,11 @@ data.var &lt;- read_csv(&quot;pml-testing.csv&quot;,
 vector.na.rm &lt;- sapply(data.var, function(x){!any(is.na(x))})
 data.na.rm &lt;- data[,vector.na.rm]
 data.na.rm &lt;- data.na.rm %&gt;% select(-1:-7)</code></pre>
+</div>
+<div id="cross-validation-and-preprocessing" class="section level2">
+<h2>Cross Validation and PreProcessing</h2>
 <p>The data has over 60 variables, so we want to employ PCA to reduce the dimensions of the data.</p>
-<pre class="r"><code>## Create Training and Test datasets
+<pre class="r"><code>## Training and Test Datasets
 set.seed(123)
 inTrain &lt;- createDataPartition(data.na.rm$classe, p = 0.75, list = FALSE)
 training &lt;- data.na.rm[inTrain,]
