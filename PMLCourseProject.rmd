@@ -1,0 +1,85 @@
+# Wearable Fitness Modeling
+## Overview
+This study models different types of motion data gathered from several individuals wearing digital fitness bands (such as FitBit). The goal is to make predictions on what exercise an individual is doing based off of their motion data. This study employs existing machine learning algorithms such as random forest and linear discriminant analysis. After exerimentation we found that the random forest model provided the best prediction results.
+
+## Data Processing
+First, we need to retrieve the data from the server and preprocess it. We also need to subset the dataset for variables the study was able to analyze.
+
+```{r, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(caret)
+library(randomForest)
+
+## Retrieve data from server
+dataset.url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+quiz.url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(dataset.url, "pml-training.csv", mode = "wb")
+download.file(quiz.url, "pml-testing.csv", mode = "wb")
+
+## Determine which variables are of interest
+data <- read_csv("pml-training.csv", 
+      na = c("NA","#DIV/0!","Inf","-Inf",""))
+data.var <- read_csv("pml-testing.csv", 
+      na = c("NA","#DIV/0!","Inf","-Inf",""))
+vector.na.rm <- sapply(data.var, function(x){!any(is.na(x))})
+data.na.rm <- data[,vector.na.rm]
+data.na.rm <- data.na.rm %>% select(-1:-7)
+```
+
+The data has over 60 variables, so we want to employ PCA to reduce the dimensions of the data.
+```{r}
+## Create Training and Test datasets
+set.seed(123)
+inTrain <- createDataPartition(data.na.rm$classe, p = 0.75, list = FALSE)
+training <- data.na.rm[inTrain,]
+testing <- data.na.rm[-inTrain,]
+
+## Subset for PCA
+training.pca.start <- select(training, -classe)
+testing.pca.start <- select(testing,-classe)
+
+## Train PCA model
+preProcess.PCA <- preProcess(training.pca.start, method = "pca")
+
+## Predict PCA
+training.pca.fin <- predict(preProcess.PCA, newdata = training.pca.start)
+testing.pca.fin <- predict(preProcess.PCA, newdata = testing.pca.start)
+
+## Add "classe" back to PCA datasets
+training.processed <- cbind(training.pca.fin, "classe" =  training$classe)
+testing.processed <- cbind(testing.pca.fin, "classe" = testing$classe)
+```
+
+## Modeling
+We will try three different models: linear discriminant analysis, randomForest, and standard tree diagram. The variables. The variables are all continuous, with some exhibiting normal and bimodal distribution. 
+
+```{r}
+## Train Random Forest, LDA, and Boosted Models
+model.lda <- train(classe ~ ., data = training.processed, method = "lda" )
+model.rf <- randomForest(classe ~., data = training.processed, n.tree = 10)
+model.rpart <- train(classe ~ ., data = training.processed, method = "rpart")
+
+## Make Predictions
+predict.test.lda <- predict(model.lda, newdata = testing.processed)
+predict.test.rf <- predict(model.rf, newdata = testing.processed)
+predict.test.rpart <- predict(model.rpart, newdata = testing.processed)
+```
+
+## Results
+```{r}
+## Compare against actuals
+confusionMatrix(predict.test.lda, testing.processed$classe)[[3]]
+confusionMatrix(predict.test.rf, testing.processed$classe)[[3]]
+confusionMatrix(predict.test.rpart, testing.processed$classe)[[3]]
+```
+
+Random forest by far yields the best results. Therefore, we will use random forest to perform analysis onto the "quiz" dataset.
+
+```{r}
+## Use Random Forest model on Quiz data
+quiz <- data.var[,vector.na.rm]
+quiz.pca.start <- quiz %>% select(-1:-7)
+quiz.pca.fin <- predict(preProcess.PCA, newdata = quiz.pca.start)
+predict.quiz.rf <- predict(model.rf, newdata = quiz.pca.fin)
+predict.quiz.rf
+```
